@@ -11,6 +11,8 @@ import { Web3Service } from '../../../services/Web3Service';
 import { HttpService } from '../../../services/HttpService';
 import { MenuService } from 'src/app/services/MenuService';
 import { ApiUrl } from '../../../services/ApiUrl';
+import { NFTContractStickerService } from 'src/app/services/nftcontract_sticker.service';
+import { NFTContractParsarService } from 'src/app/services/nftcontract_parsar.service';
 import _ from 'lodash';
 
 @Component({
@@ -40,7 +42,10 @@ export class CollectionsPage implements OnInit {
     private web3Service:Web3Service,
     private httpService:HttpService,
     private menuService: MenuService,
-    public theme:ThemeService) { }
+    public theme:ThemeService,
+    private nftContractStickerService: NFTContractStickerService,
+    private nftContractParsarService: NFTContractParsarService
+    ) { }
 
   ngOnInit(){
     this.activatedRoute.queryParams.subscribe(queryParams => {
@@ -256,9 +261,9 @@ export class CollectionsPage implements OnInit {
  async getNftCreated(){
    this.createdList = [];
    this.hanleListCace("buy");
-   const stickerContract = this.web3Service.getSticker();
+  //  const stickerContract = this.web3Service.getSticker();
    let createAddress = this.web3Service.getCreateAddress();
-   this.nftCreatedCount = await this.countOfOwner(stickerContract,createAddress);
+   this.nftCreatedCount = await this.countOfOwner(createAddress);
    console.log("======this.nftCreatedCount======="+this.nftCreatedCount);
    console.log("======typeof(this.nftCreatedCount)======="+typeof(this.nftCreatedCount));
    if(this.nftCreatedCount===0){
@@ -266,7 +271,7 @@ export class CollectionsPage implements OnInit {
    }
 
    for(let index=0;index<this.nftCreatedCount;index++){
-    this.handleOwnCreatedData(stickerContract,createAddress,index)
+    this.handleOwnCreatedData(createAddress,index)
    }
   //  let index = 0;
   //  let sid = setInterval(()=>{
@@ -280,9 +285,11 @@ export class CollectionsPage implements OnInit {
   //  },100);
  }
 
-async handleOwnCreatedData(stickerContract:any,createAddress:any,index:any){
-  let tokenId =  await stickerContract.methods.tokenIdOfOwnerByIndex(createAddress,index).call();
-  let tokenInfo =  await stickerContract.methods.tokenInfo(tokenId).call();
+async handleOwnCreatedData(createAddress:any,index:any){
+  // let tokenId =  await stickerContract.methods.tokenIdOfOwnerByIndex(createAddress,index).call();
+  // let tokenInfo =  await stickerContract.methods.tokenInfo(tokenId).call();
+  let tokenId =  await this.nftContractStickerService.tokenIdOfOwnerByIndex(createAddress,index);
+  let tokenInfo =  await this.nftContractStickerService.tokenInfo(tokenId);
   let price = "";
   let tokenNum =  tokenInfo[2];
   let tokenUri = tokenInfo[3];
@@ -290,8 +297,9 @@ async handleOwnCreatedData(stickerContract:any,createAddress:any,index:any){
   this.getUri(tokenId,price,tokenUri,tokenNum,royaltyOwner,"created");
  }
 
- async countOfOwner(stickerContract:any,createAddress:any){
-  let nftCreatedCount =  await stickerContract.methods.tokenCountOfOwner(createAddress).call();
+ async countOfOwner(createAddress:any){
+  // let nftCreatedCount =  await stickerContract.methods.tokenCountOfOwner(createAddress).call();
+  let nftCreatedCount =  await this.nftContractStickerService.tokenCountOfOwner(createAddress);
   return nftCreatedCount;
 }
 
@@ -302,8 +310,8 @@ async tokenIdByIndex(pasarContract:any,index:any,listType:any){
    let tokenId = openOrder[3];
    //let saleOrderId = openOrder[0];
    let price = openOrder[5];
-   let stickerContract = this.web3Service.getSticker();
-   let tokenInfo = await stickerContract.methods.tokenInfo(tokenId).call();
+  //  let stickerContract = this.web3Service.getSticker();
+   let tokenInfo = await this.nftContractStickerService.tokenInfo(tokenId);
    let tokenUri = tokenInfo[3];
    let tokenNum = tokenInfo[2];
    let royaltyOwner = tokenInfo[4];
@@ -352,37 +360,37 @@ handleFeedsUrl(feedsUri:string,tokenId:string,price:any,tokenNum:any,royaltyOwne
 async getPurchased(){
   this.purchasedList = [];
   this.hanleListCace("buy");
-  const pasarContract = this.web3Service.getPasar();
-  let purchasedCount = await pasarContract.methods.getBuyerCount().call();
+  // const pasarContract = this.web3Service.getPasar();
+  let purchasedCount = await this.nftContractParsarService.getBuyerCount();
   for(let index = 0;index<purchasedCount;index++){
-     let purchased = await pasarContract.methods.getBuyerByIndex(index).call();
+     let purchased = await this.nftContractParsarService.getBuyerByIndex(index);
      let buyerAddr = purchased[1];
      let orderCount = purchased[2];
-    this.handleBuyOrder(pasarContract,buyerAddr,orderCount);
+    this.handleBuyOrder(buyerAddr,orderCount);
   }
 }
 
 async getOnSale(){
   this.onSaleList = [];
   this.hanleListCace("sale");
-  const pasarContract = this.web3Service.getPasar();
-  let sellerCountCount = await pasarContract.methods.getSellerCount().call();
+  // const pasarContract = this.web3Service.getPasar();
+  let sellerCountCount = await this.nftContractParsarService.getSellerCount();
   for(let index = 0;index<sellerCountCount;index++){
-     let seller = await pasarContract.methods.getSellerByIndex(index).call();
+     let seller = await this.nftContractParsarService.getSellerByIndex(index);
      let sellerAddr = seller[1];
      let orderCount = seller[2];
-     await this.handleOrder(pasarContract,sellerAddr,orderCount,"sale");
+     await this.handleOrder(sellerAddr,orderCount,"sale");
     }
 }
 
-async handleOrder(pasarContract:any,sellerAddr:any,orderCount:any,listType:any){
+async handleOrder(sellerAddr:any,orderCount:any,listType:any){
    for(let index=0;index<orderCount;index++){
-    let sellerOrder =  await pasarContract.methods.getSellerOpenByIndex(sellerAddr,index).call();
+    let sellerOrder =  await this.nftContractParsarService.getSellerOpenByIndex(sellerAddr,index);
     let tokenId = sellerOrder[3];
     let saleOrderId = sellerOrder[0];
     let price = sellerOrder[5];
-    const stickerContract = this.web3Service.getSticker();
-    let tokenInfo = await stickerContract.methods.tokenInfo(tokenId).call();
+    // const stickerContract = this.web3Service.getSticker();
+    let tokenInfo = await this.nftContractStickerService.tokenInfo(tokenId);
     let feedsUri= tokenInfo[3];
     feedsUri  = feedsUri.replace("feeds:json:","");
     let tokenNum = tokenInfo[2];
@@ -423,15 +431,15 @@ async handleOrder(pasarContract:any,sellerAddr:any,orderCount:any,listType:any){
    }
 }
 
-async handleBuyOrder(pasarContract:any,buyerAddr:any,orderCount:any){
+async handleBuyOrder(buyerAddr:any,orderCount:any){
   for(let index=0;index<orderCount;index++){
-    let purchasedOrder =  await pasarContract.methods.getBuyerOrderByIndex(buyerAddr,index).call();
+    let purchasedOrder =  await this.nftContractParsarService.getBuyerOrderByIndex(buyerAddr,index);
     let tokenId = purchasedOrder[3];
     let saleOrderId = purchasedOrder[0];
     let price = purchasedOrder[5];
 
-    const stickerContract = this.web3Service.getSticker();
-    let tokenInfo = await stickerContract.methods.tokenInfo(tokenId).call();
+    // const stickerContract = this.web3Service.getSticker();
+    let tokenInfo = await this.nftContractStickerService.tokenInfo(tokenId);
     let feedsUri= tokenInfo[3];
     feedsUri  = feedsUri.replace("feeds:json:","");
     let tokenNum = tokenInfo[2];
